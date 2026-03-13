@@ -1,4 +1,4 @@
-module github.com/avinashpenmetsa/k8s-hatch
+module github.com/avinashpenmetsa/k8-agentgate
 
 go 1.24.0
 

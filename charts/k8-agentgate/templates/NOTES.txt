@@ -1,4 +1,4 @@
-k8s-hatch is running!
+k8-agentgate is running!
 
 {{- if .Values.istio.enabled }}
 Access via Istio: https://{{ .Values.istio.hostname }}:{{ .Values.istio.port }}
@@ -8,11 +8,11 @@ Access via Ingress: https://{{ .Values.ingress.hostname }}:{{ .Values.ingress.po
 Access via NodePort on node address port {{ .Values.service.nodePort }}
 {{- else }}
 Start port-forward:
-  kubectl port-forward svc/{{ include "k8s-hatch.fullname" . }} 8443:8443
+  kubectl port-forward svc/{{ include "k8-agentgate.fullname" . }} 8443:8443
 {{- end }}
 
 Get kubeconfig (client cert valid for {{ .Values.certTTL }}, auto-rotates):
-  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "k8s-hatch.fullname" . }} -- /k8s-hatch get-kubeconfig > hatch-kubeconfig.yaml
+  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "k8-agentgate.fullname" . }} -- /k8-agentgate get-kubeconfig > agentgate-kubeconfig.yaml
 
 Use kubectl:
-  kubectl --kubeconfig=hatch-kubeconfig.yaml get pods
+  kubectl --kubeconfig=agentgate-kubeconfig.yaml get pods

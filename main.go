@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/avinashpenmetsa/k8s-hatch/proxy"
+	"github.com/avinashpenmetsa/k8-agentgate/proxy"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "get-kubeconfig" {
-		data, err := os.ReadFile(getenv("HATCH_DATA_DIR", "/var/hatch") + "/kubeconfig.yaml")
+		data, err := os.ReadFile(getenv("AGENTGATE_DATA_DIR", "/var/agentgate") + "/kubeconfig.yaml")
 		if err != nil {
-			log.Fatalf("k8s-hatch: read kubeconfig: %v", err)
+			log.Fatalf("k8-agentgate: read kubeconfig: %v", err)
 		}
 		os.Stdout.Write(data)
 		return
@@ -25,12 +25,12 @@ func main() {
 
 	cfg, err := loadKubeConfig()
 	if err != nil {
-		log.Fatalf("k8s-hatch: load kubeconfig: %v", err)
+		log.Fatalf("k8-agentgate: load kubeconfig: %v", err)
 	}
 
 	srv, err := proxy.New(cfg, proxy.Options{
 		CertTTL:        loadDuration("CERT_TTL", 6*time.Hour),
-		DataDir:        getenv("HATCH_DATA_DIR", "/var/hatch"),
+		DataDir:        getenv("AGENTGATE_DATA_DIR", "/var/agentgate"),
 		ProxyServerURL: getenv("PROXY_SERVER_URL", "https://127.0.0.1:8443"),
 		ServiceName:    os.Getenv("TLS_SERVICE_NAME"),
 		ServiceFQDN:    os.Getenv("TLS_SERVICE_FQDN"),
@@ -38,15 +38,15 @@ func main() {
 		ExtraIPs:       parseIPs(os.Getenv("TLS_EXTRA_IPS")),
 	})
 	if err != nil {
-		log.Fatalf("k8s-hatch: create proxy: %v", err)
+		log.Fatalf("k8-agentgate: create proxy: %v", err)
 	}
 
 	ln, err := net.Listen("tcp", getenv("PROXY_ADDR", ":8443"))
 	if err != nil {
-		log.Fatalf("k8s-hatch: listen: %v", err)
+		log.Fatalf("k8-agentgate: listen: %v", err)
 	}
 
-	log.Printf("k8s-hatch listening on %s", ln.Addr())
+	log.Printf("k8-agentgate listening on %s", ln.Addr())
 	log.Fatal(srv.Start(context.Background(), ln))
 }
 
@@ -77,7 +77,7 @@ func loadDuration(key string, def time.Duration) time.Duration {
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
-		log.Printf("k8s-hatch: invalid %s=%q, using default %s", key, v, def)
+		log.Printf("k8-agentgate: invalid %s=%q, using default %s", key, v, def)
 		return def
 	}
 	return d
@@ -106,7 +106,7 @@ func parseIPs(s string) []net.IP {
 		if ip != nil {
 			ips = append(ips, ip)
 		} else {
-			log.Printf("k8s-hatch: invalid IP %q in TLS_EXTRA_IPS, skipping", p)
+			log.Printf("k8-agentgate: invalid IP %q in TLS_EXTRA_IPS, skipping", p)
 		}
 	}
 	return ips

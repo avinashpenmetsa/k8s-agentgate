@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "k8s-hatch.fullname" . }}
+  name: {{ include "k8-agentgate.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "k8s-hatch.labels" . | nindent 4 }}
+    {{- include "k8-agentgate.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   selector:
-    {{- include "k8s-hatch.selectorLabels" . | nindent 4 }}
+    {{- include "k8-agentgate.selectorLabels" . | nindent 4 }}
   ports:
     - name: https
       port: {{ .Values.service.port }}

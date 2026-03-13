@@ -2,10 +2,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "k8s-hatch.fullname" . }}
+  name: {{ include "k8-agentgate.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "k8s-hatch.labels" . | nindent 4 }}
+    {{- include "k8-agentgate.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -22,7 +22,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "k8s-hatch.fullname" . }}
+                name: {{ include "k8-agentgate.fullname" . }}
                 port:
                   number: {{ .Values.service.port }}
 {{- end }}

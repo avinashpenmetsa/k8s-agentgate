@@ -2,15 +2,15 @@
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: {{ include "k8s-hatch.fullname" . }}
+  name: {{ include "k8-agentgate.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "k8s-hatch.labels" . | nindent 4 }}
+    {{- include "k8-agentgate.labels" . | nindent 4 }}
 spec:
   hosts:
     - {{ .Values.istio.hostname }}
   gateways:
-    - {{ if .Values.istio.gatewayName }}{{ .Values.istio.gatewayName }}{{ else }}{{ include "k8s-hatch.fullname" . }}{{ end }}
+    - {{ if .Values.istio.gatewayName }}{{ .Values.istio.gatewayName }}{{ else }}{{ include "k8-agentgate.fullname" . }}{{ end }}
   tls:
     - match:
         - port: {{ .Values.istio.port }}
@@ -18,7 +18,7 @@ spec:
             - {{ .Values.istio.hostname }}
       route:
         - destination:
-            host: {{ include "k8s-hatch.fullname" . }}
+            host: {{ include "k8-agentgate.fullname" . }}
             port:
               number: {{ .Values.service.port }}
 {{- end }}

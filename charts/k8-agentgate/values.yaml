@@ -1,6 +1,6 @@
 image:
-  repository: k8s-hatch
-  tag: latest
+  repository: avin4sh/k8-agentgate
+  tag: "0.5.0"
   pullPolicy: IfNotPresent
 
 # Client + server cert validity before auto-rotation
@@ -14,14 +14,14 @@ service:
 tls:
   # First extraDNSName is used as hostname in kubeconfig URL (NodePort/Ingress/Istio modes).
   # All entries are added to the server cert SANs.
-  extraDNSNames: []       # e.g. ["k8s-hatch.example.com"]
+  extraDNSNames: []
   extraIPAddresses: []    # e.g. ["192.168.1.10"]
 
 # Standard k8s Ingress (requires ssl-passthrough support, e.g. nginx ingress)
 ingress:
   enabled: false
   className: "nginx"
-  hostname: ""        # e.g. "k8s-hatch.example.com"
+  hostname: ""        # e.g. "k8-agentgate.example.com"
   port: 443
   annotations:
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
@@ -29,11 +29,11 @@ ingress:
 
 # Istio Gateway + VirtualService (TLS passthrough mode)
 istio:
-  enabled: false
+  enabled: true
   gatewayName: ""          # leave empty to create a new Gateway
   gatewaySelector:
     istio: ingressgateway
-  hostname: ""             # e.g. "k8s-hatch.example.com"
+  hostname: k8-agentgate.example.com
   port: 443
 
 # Namespace-scoped RBAC (no ClusterRoles — list namespaces and their allowed rules)
@@ -41,14 +41,29 @@ rbac:
   namespaces:
     - default
   rules:
-    # Pods: list, get, exec
+    # Pods: list, get, watch
     - apiGroups: [""]
-      resources: ["pods", "pods/exec", "pods/log"]
-      verbs: ["get", "list", "watch", "create"]   # "create" needed for exec subresource
-    # Deployments: list, get, set image (patch), scale (patch scale subresource)
+      resources: ["pods"]
+      verbs: ["get", "list", "watch"]
+    # Pod exec
+    - apiGroups: [""]
+      resources: ["pods/exec"]
+      verbs: ["create"]
+    # Pod logs
+    - apiGroups: [""]
+      resources: ["pods/log"]
+      verbs: ["get"]
+    # Pod port-forward
+    - apiGroups: [""]
+      resources: ["pods/portforward"]
+      verbs: ["create"]
+    # Deployments: list, get, set image (patch), scale
     - apiGroups: ["apps"]
-      resources: ["deployments", "deployments/scale"]
+      resources: ["deployments"]
       verbs: ["get", "list", "patch"]
+    - apiGroups: ["apps"]
+      resources: ["deployments/scale"]
+      verbs: ["get", "patch"]
 
 securityContext:
   readOnlyRootFilesystem: true    # emptyDir is still writable

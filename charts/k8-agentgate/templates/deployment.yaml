@@ -8,26 +8,38 @@
 {{- if and .Values.istio.enabled .Values.istio.hostname }}
   {{- $serverURL = printf "https://%s:%d" .Values.istio.hostname (int .Values.istio.port) }}
 {{- end }}
+{{- /* Build deduplicated DNS names list: merge extraDNSNames + ingress/istio hostnames */ -}}
+{{- $dnsNames := .Values.tls.extraDNSNames | default list }}
+{{- if and .Values.ingress.enabled .Values.ingress.hostname }}
+  {{- if not (has .Values.ingress.hostname $dnsNames) }}
+    {{- $dnsNames = append $dnsNames .Values.ingress.hostname }}
+  {{- end }}
+{{- end }}
+{{- if and .Values.istio.enabled .Values.istio.hostname }}
+  {{- if not (has .Values.istio.hostname $dnsNames) }}
+    {{- $dnsNames = append $dnsNames .Values.istio.hostname }}
+  {{- end }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "k8s-hatch.fullname" . }}
+  name: {{ include "k8-agentgate.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "k8s-hatch.labels" . | nindent 4 }}
+    {{- include "k8-agentgate.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "k8s-hatch.selectorLabels" . | nindent 6 }}
+      {{- include "k8-agentgate.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "k8s-hatch.selectorLabels" . | nindent 8 }}
+        {{- include "k8-agentgate.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "k8s-hatch.fullname" . }}
+      serviceAccountName: {{ include "k8-agentgate.fullname" . }}
       containers:
-        - name: k8s-hatch
+        - name: k8-agentgate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -37,21 +49,21 @@ spec:
           env:
             - name: CERT_TTL
               value: {{ .Values.certTTL | quote }}
-            - name: HATCH_DATA_DIR
-              value: "/var/hatch"
+            - name: AGENTGATE_DATA_DIR
+              value: "/var/agentgate"
             - name: PROXY_SERVER_URL
               value: {{ $serverURL | quote }}
             - name: TLS_SERVICE_NAME
-              value: {{ include "k8s-hatch.fullname" . | quote }}
+              value: {{ include "k8-agentgate.fullname" . | quote }}
             - name: TLS_SERVICE_FQDN
-              value: "{{ include "k8s-hatch.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
+              value: "{{ include "k8-agentgate.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
             - name: TLS_EXTRA_DNS_NAMES
-              value: {{ .Values.tls.extraDNSNames | join "," | quote }}
+              value: {{ $dnsNames | join "," | quote }}
             - name: TLS_EXTRA_IPS
               value: {{ .Values.tls.extraIPAddresses | join "," | quote }}
           volumeMounts:
-            - name: hatch-data
-              mountPath: /var/hatch
+            - name: agentgate-data
+              mountPath: /var/agentgate
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           readinessProbe:
@@ -65,5 +77,5 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 20
       volumes:
-        - name: hatch-data
+        - name: agentgate-data
           emptyDir: {}

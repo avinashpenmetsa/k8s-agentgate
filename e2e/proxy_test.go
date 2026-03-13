@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avinashpenmetsa/k8s-hatch/proxy"
+	"github.com/avinashpenmetsa/k8-agentgate/proxy"
 	"github.com/testcontainers/testcontainers-go/modules/k3s"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -60,7 +60,7 @@ func TestProxyE2E(t *testing.T) {
 	}
 
 	// 5. Start proxy in-process with a temp DataDir
-	dataDir, err := os.MkdirTemp("", "k8s-hatch-test-")
+	dataDir, err := os.MkdirTemp("", "k8-agentgate-test-")
 	if err != nil {
 		t.Fatalf("mktemp: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestProxyE2E(t *testing.T) {
 	}
 	clientCfg, err := clientcmd.RESTConfigFromKubeConfig(kcBytes)
 	if err != nil {
-		t.Fatalf("parse hatch kubeconfig: %v", err)
+		t.Fatalf("parse agentgate kubeconfig: %v", err)
 	}
 	httpClient := buildMTLSClient(t, clientCfg)
 	baseURL := proxyAddr
@@ -170,14 +170,14 @@ func applyRBAC(ctx context.Context, t *testing.T, client *kubernetes.Clientset) 
 	t.Helper()
 
 	_, err := client.CoreV1().ServiceAccounts("default").Create(ctx, &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{Name: "hatch-agent", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: "agentgate-agent", Namespace: "default"},
 	}, metav1.CreateOptions{})
 	if err != nil {
 		t.Logf("SA create (may already exist): %v", err)
 	}
 
 	_, err = client.RbacV1().Roles("default").Create(ctx, &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{Name: "hatch-agent", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: "agentgate-agent", Namespace: "default"},
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
@@ -196,14 +196,14 @@ func applyRBAC(ctx context.Context, t *testing.T, client *kubernetes.Clientset) 
 	}
 
 	_, err = client.RbacV1().RoleBindings("default").Create(ctx, &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{Name: "hatch-agent", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: "agentgate-agent", Namespace: "default"},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "Role",
-			Name:     "hatch-agent",
+			Name:     "agentgate-agent",
 		},
 		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", Name: "hatch-agent", Namespace: "default"},
+			{Kind: "ServiceAccount", Name: "agentgate-agent", Namespace: "default"},
 		},
 	}, metav1.CreateOptions{})
 	if err != nil {
@@ -213,7 +213,7 @@ func applyRBAC(ctx context.Context, t *testing.T, client *kubernetes.Clientset) 
 
 func getSAToken(ctx context.Context, t *testing.T, client *kubernetes.Clientset) string {
 	t.Helper()
-	tokenReq, err := client.CoreV1().ServiceAccounts("default").CreateToken(ctx, "hatch-agent",
+	tokenReq, err := client.CoreV1().ServiceAccounts("default").CreateToken(ctx, "agentgate-agent",
 		&authenticationv1.TokenRequest{
 			Spec: authenticationv1.TokenRequestSpec{
 				ExpirationSeconds: int64ptr(3600),

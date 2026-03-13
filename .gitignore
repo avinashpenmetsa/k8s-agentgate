@@ -1,4 +1,4 @@
 bin/
-hatch-kubeconfig.yaml
+agentgate-kubeconfig.yaml
 *.tgz
 .claude/

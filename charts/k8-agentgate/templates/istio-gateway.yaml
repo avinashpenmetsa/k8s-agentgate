@@ -2,10 +2,10 @@
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
-  name: {{ include "k8s-hatch.fullname" . }}
+  name: {{ include "k8-agentgate.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "k8s-hatch.labels" . | nindent 4 }}
+    {{- include "k8-agentgate.labels" . | nindent 4 }}
 spec:
   selector:
     {{- toYaml .Values.istio.gatewaySelector | nindent 4 }}

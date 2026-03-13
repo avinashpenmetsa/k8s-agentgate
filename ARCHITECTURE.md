@@ -1,13 +1,13 @@
-# k8s-hatch Architecture
+# k8-agentgate Architecture
 
 ## System Overview
 
 ```mermaid
 graph TB
-    Agent["AI Agent / kubectl\n(hatch-kubeconfig.yaml)"]
+    Agent["AI Agent / kubectl\n(agentgate-kubeconfig.yaml)"]
 
-    subgraph pod["k8s-hatch Pod"]
-        subgraph emptydir["/var/hatch (emptyDir)"]
+    subgraph pod["k8-agentgate Pod"]
+        subgraph emptydir["/var/agentgate (emptyDir)"]
             files["ca.crt · ca.key\nserver.crt · server.key\nkubeconfig.yaml"]
         end
 
@@ -27,7 +27,7 @@ graph TB
         rbac["RBAC\nNamespace-scoped Roles only\n(no ClusterRoles)"]
     end
 
-    Agent -->|"mTLS\nclient cert signed by hatch CA"| listener
+    Agent -->|"mTLS\nclient cert signed by agentgate CA"| listener
     files <-->|reads / atomic writes| cm
     genCA --> rotate
     rotate --> lock
@@ -57,7 +57,7 @@ flowchart TD
     loadCerts -->|yes| loadMem[Load into memory\nset expiresAt]
     loadCerts -->|no| rotate
 
-    rotate[rotate\n① RSA-2048 server cert\n   SANs: localhost svc-name FQDN extras\n② RSA-2048 client cert\n   CN: hatch-agent\n③ Atomic write server.crt · server.key\n④ Atomic write kubeconfig.yaml\n⑤ Update serverCert + expiresAt\n   under write lock]
+    rotate[rotate\n① RSA-2048 server cert\n   SANs: localhost svc-name FQDN extras\n② RSA-2048 client cert\n   CN: agentgate-agent\n③ Atomic write server.crt · server.key\n④ Atomic write kubeconfig.yaml\n⑤ Update serverCert + expiresAt\n   under write lock]
 
     loadMem --> loop
     rotate --> loop
@@ -76,7 +76,7 @@ flowchart TD
 graph LR
     subgraph inbound["Inbound  (Agent → Proxy)"]
         agent["Agent\n(mTLS client cert)"]
-        tlsln["tls.Listener\nVerifies client cert\nagainst hatch CA"]
+        tlsln["tls.Listener\nVerifies client cert\nagainst agentgate CA"]
         httpsrv["http.Server"]
         uah["UpgradeAwareHandler"]
     end
@@ -111,17 +111,17 @@ graph LR
 graph TB
     subgraph cluster["Kubernetes Cluster"]
         subgraph release["Namespace: &lt;release-ns&gt;"]
-            sa["ServiceAccount\nk8s-hatch"]
-            deploy["Deployment\nk8s-hatch"]
+            sa["ServiceAccount\nk8-agentgate"]
+            deploy["Deployment\nk8-agentgate"]
             svc["Service\nClusterIP or NodePort"]
-            vol["emptyDir\n/var/hatch"]
+            vol["emptyDir\n/var/agentgate"]
             deploy --> vol
             deploy --> sa
         end
 
         subgraph target["Namespace: default  (per rbac.namespaces)"]
-            role["Role\nk8s-hatch\npods · pods/exec · pods/log\ndeployments"]
-            rb["RoleBinding\nk8s-hatch\nsubject: SA k8s-hatch @ release-ns"]
+            role["Role\nk8-agentgate\npods · pods/exec · pods/log\ndeployments"]
+            rb["RoleBinding\nk8-agentgate\nsubject: SA k8-agentgate @ release-ns"]
             role --> rb
         end
 
@@ -137,6 +137,6 @@ graph TB
         svc --> pf & np & ing & gw
     end
 
-    client["kubectl / Agent\n(hatch-kubeconfig.yaml)\nPROXY_SERVER_URL embedded at deploy time"]
+    client["kubectl / Agent\n(agentgate-kubeconfig.yaml)\nPROXY_SERVER_URL embedded at deploy time"]
     client --> pf & np & ing & gw
 ```

@@ -29,7 +29,7 @@ import (
 // Options configures the proxy server.
 type Options struct {
 	CertTTL        time.Duration // default 6h
-	DataDir        string        // dir for CA + kubeconfig files, e.g. /var/hatch
+	DataDir        string        // dir for CA + kubeconfig files, e.g. /var/agentgate
 	ProxyServerURL string        // server URL to embed in kubeconfig, from PROXY_SERVER_URL env
 	ServiceName    string        // added to cert SANs
 	ServiceFQDN    string        // added to cert SANs
@@ -61,7 +61,7 @@ func New(cfg *rest.Config, opts Options) (*Server, error) {
 		opts.CertTTL = 6 * time.Hour
 	}
 	if opts.DataDir == "" {
-		opts.DataDir = "/var/hatch"
+		opts.DataDir = "/var/agentgate"
 	}
 	if opts.ProxyServerURL == "" {
 		opts.ProxyServerURL = "https://127.0.0.1:8443"
@@ -101,7 +101,7 @@ func (s *Server) Start(ctx context.Context, ln net.Listener) error {
 	s.mu.Unlock()
 
 	tlsLn := tls.NewListener(ln, tlsCfg)
-	log.Printf("k8s-hatch: serving mTLS proxy on %s", ln.Addr())
+	log.Printf("k8-agentgate: serving mTLS proxy on %s", ln.Addr())
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -163,13 +163,13 @@ func (cm *CertManager) loadOrGenerateCA() error {
 		if err == nil {
 			cm.caCert = cert
 			cm.caKey = key
-			log.Printf("k8s-hatch: loaded existing CA from %s", cm.opts.DataDir)
+			log.Printf("k8-agentgate: loaded existing CA from %s", cm.opts.DataDir)
 			return nil
 		}
-		log.Printf("k8s-hatch: failed to parse existing CA, regenerating: %v", err)
+		log.Printf("k8-agentgate: failed to parse existing CA, regenerating: %v", err)
 	}
 
-	log.Printf("k8s-hatch: generating new CA")
+	log.Printf("k8-agentgate: generating new CA")
 	caKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return fmt.Errorf("generate CA key: %w", err)
@@ -182,8 +182,8 @@ func (cm *CertManager) loadOrGenerateCA() error {
 	caTemplate := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
-			CommonName:   "k8s-hatch-ca",
-			Organization: []string{"k8s-hatch"},
+			CommonName:   "k8-agentgate-ca",
+			Organization: []string{"k8-agentgate"},
 		},
 		NotBefore:             time.Now().Add(-1 * time.Minute),
 		NotAfter:              time.Now().Add(10 * 365 * 24 * time.Hour),
@@ -215,7 +215,7 @@ func (cm *CertManager) loadOrGenerateCA() error {
 
 	cm.caCert = caCert
 	cm.caKey = caKey
-	log.Printf("k8s-hatch: CA generated and saved to %s", cm.opts.DataDir)
+	log.Printf("k8-agentgate: CA generated and saved to %s", cm.opts.DataDir)
 	return nil
 }
 
@@ -235,7 +235,7 @@ func (cm *CertManager) loadOrGenerateCerts() error {
 				cm.serverCert = tlsCert
 				cm.expiresAt = leaf.NotAfter
 				cm.mu.Unlock()
-				log.Printf("k8s-hatch: loaded existing server cert, expires %s", leaf.NotAfter.Format(time.RFC3339))
+				log.Printf("k8-agentgate: loaded existing server cert, expires %s", leaf.NotAfter.Format(time.RFC3339))
 				return nil
 			}
 		}
@@ -272,7 +272,7 @@ func (cm *CertManager) rotate() error {
 	notAfter := time.Now().Add(opts.CertTTL)
 	srvTemplate := &x509.Certificate{
 		SerialNumber: serial,
-		Subject:      pkix.Name{CommonName: "k8s-hatch-server"},
+		Subject:      pkix.Name{CommonName: "k8-agentgate-server"},
 		NotBefore:    time.Now().Add(-1 * time.Minute),
 		NotAfter:     notAfter,
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
@@ -298,7 +298,7 @@ func (cm *CertManager) rotate() error {
 	}
 	clientTemplate := &x509.Certificate{
 		SerialNumber: clientSerial,
-		Subject:      pkix.Name{CommonName: "hatch-agent"},
+		Subject:      pkix.Name{CommonName: "agentgate-agent"},
 		NotBefore:    time.Now().Add(-1 * time.Minute),
 		NotAfter:     notAfter,
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
@@ -360,7 +360,7 @@ func (cm *CertManager) rotate() error {
 	cm.expiresAt = notAfter
 	cm.mu.Unlock()
 
-	log.Printf("k8s-hatch: cert rotated, expires: %s", notAfter.Format(time.RFC3339))
+	log.Printf("k8-agentgate: cert rotated, expires: %s", notAfter.Format(time.RFC3339))
 	return nil
 }
 
@@ -377,7 +377,7 @@ func (cm *CertManager) rotateLoop(ctx context.Context) {
 			cm.mu.RUnlock()
 			if time.Now().After(expiresAt.Add(-10 * time.Minute)) {
 				if err := cm.rotate(); err != nil {
-					log.Printf("k8s-hatch: cert rotation failed: %v", err)
+					log.Printf("k8-agentgate: cert rotation failed: %v", err)
 				}
 			}
 		}
@@ -512,18 +512,18 @@ func buildKubeconfig(serverURL, caB64, certB64, keyB64 string) string {
 	return fmt.Sprintf(`apiVersion: v1
 kind: Config
 clusters:
-  - name: k8s-hatch
+  - name: k8-agentgate
     cluster:
       server: %s
       certificate-authority-data: %s
 contexts:
-  - name: k8s-hatch
+  - name: k8-agentgate
     context:
-      cluster: k8s-hatch
-      user: hatch-agent
-current-context: k8s-hatch
+      cluster: k8-agentgate
+      user: agentgate-agent
+current-context: k8-agentgate
 users:
-  - name: hatch-agent
+  - name: agentgate-agent
     user:
       client-certificate-data: %s
       client-key-data: %s
