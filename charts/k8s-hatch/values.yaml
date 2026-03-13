@@ -1,0 +1,57 @@
+image:
+  repository: k8s-hatch
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Client + server cert validity before auto-rotation
+certTTL: "6h"
+
+service:
+  type: ClusterIP    # or NodePort
+  port: 8443
+  nodePort: ""       # e.g. 30443, used when type=NodePort
+
+tls:
+  # First extraDNSName is used as hostname in kubeconfig URL (NodePort/Ingress/Istio modes).
+  # All entries are added to the server cert SANs.
+  extraDNSNames: []       # e.g. ["k8s-hatch.example.com"]
+  extraIPAddresses: []    # e.g. ["192.168.1.10"]
+
+# Standard k8s Ingress (requires ssl-passthrough support, e.g. nginx ingress)
+ingress:
+  enabled: false
+  className: "nginx"
+  hostname: ""        # e.g. "k8s-hatch.example.com"
+  port: 443
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+# Istio Gateway + VirtualService (TLS passthrough mode)
+istio:
+  enabled: false
+  gatewayName: ""          # leave empty to create a new Gateway
+  gatewaySelector:
+    istio: ingressgateway
+  hostname: ""             # e.g. "k8s-hatch.example.com"
+  port: 443
+
+# Namespace-scoped RBAC (no ClusterRoles — list namespaces and their allowed rules)
+rbac:
+  namespaces:
+    - default
+  rules:
+    # Pods: list, get, exec
+    - apiGroups: [""]
+      resources: ["pods", "pods/exec", "pods/log"]
+      verbs: ["get", "list", "watch", "create"]   # "create" needed for exec subresource
+    # Deployments: list, get, set image (patch), scale (patch scale subresource)
+    - apiGroups: ["apps"]
+      resources: ["deployments", "deployments/scale"]
+      verbs: ["get", "list", "patch"]
+
+securityContext:
+  readOnlyRootFilesystem: true    # emptyDir is still writable
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 65534

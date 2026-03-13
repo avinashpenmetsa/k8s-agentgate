@@ -1,0 +1,21 @@
+{{- if and .Values.istio.enabled (not .Values.istio.gatewayName) }}
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{ include "k8s-hatch.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-hatch.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- toYaml .Values.istio.gatewaySelector | nindent 4 }}
+  servers:
+    - port:
+        number: {{ .Values.istio.port }}
+        name: tls
+        protocol: TLS
+      tls:
+        mode: PASSTHROUGH
+      hosts:
+        - {{ .Values.istio.hostname }}
+{{- end }}

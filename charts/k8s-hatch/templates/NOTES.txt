@@ -1,0 +1,18 @@
+k8s-hatch is running!
+
+{{- if .Values.istio.enabled }}
+Access via Istio: https://{{ .Values.istio.hostname }}:{{ .Values.istio.port }}
+{{- else if .Values.ingress.enabled }}
+Access via Ingress: https://{{ .Values.ingress.hostname }}:{{ .Values.ingress.port }}
+{{- else if eq .Values.service.type "NodePort" }}
+Access via NodePort on node address port {{ .Values.service.nodePort }}
+{{- else }}
+Start port-forward:
+  kubectl port-forward svc/{{ include "k8s-hatch.fullname" . }} 8443:8443
+{{- end }}
+
+Get kubeconfig (client cert valid for {{ .Values.certTTL }}, auto-rotates):
+  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "k8s-hatch.fullname" . }} -- /k8s-hatch get-kubeconfig > hatch-kubeconfig.yaml
+
+Use kubectl:
+  kubectl --kubeconfig=hatch-kubeconfig.yaml get pods

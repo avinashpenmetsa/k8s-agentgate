@@ -1,0 +1,6 @@
+apiVersion: v2
+name: k8s-hatch
+description: mTLS proxy giving AI coding agents temporary, permission-restricted access to the Kubernetes API
+type: application
+version: 0.2.0-chart
+appVersion: "0.2.0"

@@ -1,0 +1,4 @@
+bin/
+hatch-kubeconfig.yaml
+*.tgz
+.claude/
